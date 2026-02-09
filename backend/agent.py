@@ -102,90 +102,101 @@ def execute_search(queries: list[str]) -> list[dict]:
 
 
 # ============================================================
-# Function 3: Filter Results (The "Student Advantage")
+# Function 3: Filter Results (BATCH PROCESSING)
 # ============================================================
-
-class RelevanceCheck(BaseModel):
-    """Structured output for relevance checking."""
-    is_relevant: bool
-    reason: str
-
 
 def filter_results(query: str, raw_results: list[dict]) -> tuple[str, list[dict]]:
     """
-    Filter out irrelevant search results using LLM judgment.
+    Filter out irrelevant search results using BATCH LLM processing.
+    
+    Instead of calling the LLM for each result individually (slow),
+    we combine all results into one prompt and ask the LLM to return
+    the indices of relevant results in a single call.
     
     Returns:
         A tuple of (context_string, sources_list)
-        - context_string: ONLY numbered content for LLM (no titles/URLs!)
+        - context_string: Numbered content for LLM
         - sources_list: List of {num, title, url} for citation injection
     """
+    import json
     
+    if not raw_results:
+        return "", []
+    
+    # Build a numbered summary of all results for the LLM
+    summaries = []
+    for i, result in enumerate(raw_results):
+        title = result.get('title', 'No title')
+        content = result.get('content', '')[:500]  # Truncate for batch prompt
+        summaries.append(f"[{i}] Title: {title}\nContent: {content}")
+    
+    all_summaries = "\n\n---\n\n".join(summaries)
+    
+    # Make ONE LLM call to filter all results at once
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are a relevance filter. Given a research question and a list of numbered search results, identify which results are relevant and useful for answering the question.
+
+Be strict - only include results that directly help answer the question.
+
+You MUST respond with valid JSON in this exact format:
+{"relevant_indices": [0, 2, 5]}
+
+Where the numbers are the indices of relevant results from the list provided.
+If no results are relevant, return {"relevant_indices": []}"""
+                },
+                {
+                    "role": "user",
+                    "content": f"""Research Question: {query}
+
+Search Results:
+{all_summaries}
+
+Which result indices (0, 1, 2, etc.) are relevant to answering this research question?"""
+                }
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.3,
+        )
+        
+        result_json = json.loads(completion.choices[0].message.content)
+        relevant_indices = result_json.get("relevant_indices", [])
+        
+        # Validate indices
+        relevant_indices = [i for i in relevant_indices if isinstance(i, int) and 0 <= i < len(raw_results)]
+        
+    except Exception as e:
+        print(f"Error in batch filtering: {str(e)}")
+        # Fallback: return top 3 results if LLM fails
+        relevant_indices = list(range(min(3, len(raw_results))))
+    
+    # If no results marked relevant, fallback to top 3
+    if not relevant_indices:
+        relevant_indices = list(range(min(3, len(raw_results))))
+    
+    # Build context and sources from relevant results only
     context_parts = []
-    sources = []  # List of {"num": 1, "title": "...", "url": "..."}
+    sources = []
     source_number = 1
     
-    for result in raw_results:
-        try:
-            completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are a relevance filter. Given a research question and 
-a search result, determine if the result is relevant and useful for answering the question.
-
-Be strict - only mark as relevant if the content directly helps answer the question.
-
-Respond with valid JSON in this format:
-{"is_relevant": true/false, "reason": "brief explanation"}"""
-                    },
-                    {
-                        "role": "user",
-                        "content": f"""Research Question: {query}
-
-Search Result Title: {result.get('title', 'No title')}
-Search Result Content: {result.get('content', '')[:1000]}
-
-Is this result relevant to answering the research question?"""
-                    }
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.3,
-            )
-            
-            import json
-            relevance = json.loads(completion.choices[0].message.content)
-            
-            if relevance.get("is_relevant", False):
-                url = result.get('url', '')
-                title = result.get('title', 'Source')
-                content = result.get('content', '')
-                
-                # Store source info for citation injection (title + url)
-                sources.append({
-                    "num": source_number,
-                    "title": title,
-                    "url": url
-                })
-                
-                # Give LLM ONLY numbered content - NO titles or URLs!
-                context_parts.append(f"[{source_number}]: {content}")
-                source_number += 1
-                
-        except Exception as e:
-            print(f"Error checking relevance: {str(e)}")
-            url = result.get('url', '')
-            title = result.get('title', 'Source')
-            content = result.get('content', '')
-            
-            sources.append({
-                "num": source_number,
-                "title": title if title else "Source",
-                "url": url
-            })
-            context_parts.append(f"[{source_number}]: {content}")
-            source_number += 1
+    for idx in relevant_indices:
+        result = raw_results[idx]
+        url = result.get('url', '')
+        title = result.get('title', 'Source')
+        content = result.get('content', '')
+        
+        sources.append({
+            "num": source_number,
+            "title": title,
+            "url": url
+        })
+        
+        context_parts.append(f"[{source_number}]: {content}")
+        source_number += 1
     
     context = "\n\n".join(context_parts)
     
