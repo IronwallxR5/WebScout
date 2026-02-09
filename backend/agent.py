@@ -9,15 +9,15 @@ This module contains the 4 core functions that power the Level 3 Search Agent:
 """
 
 import os
-from openai import OpenAI
+from groq import Groq
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize Groq client
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 # ============================================================
@@ -37,8 +37,7 @@ def plan_research(query: str) -> list[str]:
     """
     Break down a user's vague query into 3 specific, searchable sub-queries.
     
-    Uses OpenAI's structured output feature with Pydantic to guarantee
-    the response is a valid list of strings (no regex parsing needed).
+    Uses Groq's JSON mode to guarantee the response is valid JSON.
     
     Args:
         query: The user's original research question
@@ -47,8 +46,8 @@ def plan_research(query: str) -> list[str]:
         A list of 3 specific search queries
     """
     
-    completion = client.beta.chat.completions.parse(
-        model="gpt-4o-mini",
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "system",
@@ -60,12 +59,12 @@ Each sub-query should:
 - Target different aspects of the main question
 - Be optimized for web search (clear, concise keywords)
 
+You MUST respond with valid JSON in this exact format:
+{"queries": ["query1", "query2", "query3"]}
+
 Example:
 User: "Is AI dangerous?"
-Sub-queries:
-1. "AI safety risks and potential dangers 2024"
-2. "Benefits of artificial intelligence for society"
-3. "AI regulation and safety measures worldwide"
+Response: {"queries": ["AI safety risks and potential dangers 2024", "Benefits of artificial intelligence for society", "AI regulation and safety measures worldwide"]}
 """
             },
             {
@@ -73,13 +72,15 @@ Sub-queries:
                 "content": f"Break down this research question into 3 specific search queries:\n\n{query}"
             }
         ],
-        response_format=ResearchPlan,
+        response_format={"type": "json_object"},
+        temperature=0.7,
     )
     
-    # Extract the parsed Pydantic model
-    research_plan = completion.choices[0].message.parsed
+    # Parse JSON response
+    import json
+    result = json.loads(completion.choices[0].message.content)
     
-    return research_plan.queries
+    return result["queries"]
 
 
 # ============================================================
@@ -164,15 +165,18 @@ def filter_results(query: str, raw_results: list[dict]) -> str:
     for result in raw_results:
         try:
             # Ask LLM if this result is relevant
-            completion = client.beta.chat.completions.parse(
-                model="gpt-4o-mini",
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
                 messages=[
                     {
                         "role": "system",
                         "content": """You are a relevance filter. Given a research question and 
 a search result, determine if the result is relevant and useful for answering the question.
 
-Be strict - only mark as relevant if the content directly helps answer the question."""
+Be strict - only mark as relevant if the content directly helps answer the question.
+
+Respond with valid JSON in this format:
+{"is_relevant": true/false, "reason": "brief explanation"}"""
                     },
                     {
                         "role": "user",
@@ -184,12 +188,14 @@ Search Result Content: {result.get('content', '')[:1000]}
 Is this result relevant to answering the research question?"""
                     }
                 ],
-                response_format=RelevanceCheck,
+                response_format={"type": "json_object"},
+                temperature=0.3,
             )
             
-            relevance = completion.choices[0].message.parsed
+            import json
+            relevance = json.loads(completion.choices[0].message.content)
             
-            if relevance.is_relevant:
+            if relevance.get("is_relevant", False):
                 # Add relevant content with source URL
                 relevant_content.append(
                     f"Source: {result.get('url', 'Unknown')}\n"
@@ -237,7 +243,7 @@ def generate_report(query: str, context: str) -> str:
     """
     
     completion = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "system",
@@ -261,6 +267,7 @@ Sources:
 Write a comprehensive research report answering the question above. Use the sources provided and cite them properly."""
             }
         ],
+        temperature=0.7,
     )
     
     return completion.choices[0].message.content
