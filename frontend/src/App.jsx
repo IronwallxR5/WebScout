@@ -1,17 +1,6 @@
-/**
- * App.jsx - Main React Component for AI Research Assistant
- * 
- * Features:
- * - Clean, ChatGPT-like UI
- * - "Fake streaming" status updates while waiting for API
- * - Markdown rendering for final report
- * - Displays research plan to show off the Level 3 logic
- */
-
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 
-// Status messages for the "fake streaming" effect
 const STATUS_MESSAGES = [
   "🧠 Analyzing your request...",
   "🔎 Generating search strategy...",
@@ -21,25 +10,22 @@ const STATUS_MESSAGES = [
 ]
 
 function App() {
-  // State management
   const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [statusIndex, setStatusIndex] = useState(0)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
 
-  // Fake streaming effect - cycle through status messages while loading
   useEffect(() => {
     let interval
     if (isLoading) {
       interval = setInterval(() => {
         setStatusIndex((prev) => (prev + 1) % STATUS_MESSAGES.length)
-      }, 2500) // Change status every 2.5 seconds
+      }, 2500) 
     }
     return () => clearInterval(interval)
   }, [isLoading])
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!query.trim()) return
@@ -50,7 +36,9 @@ function App() {
     setError(null)
 
     try {
-      const response = await fetch('http://localhost:8000/api/research', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+      const response = await fetch(`${API_URL}/api/research`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,7 +61,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
-      {/* Header */}
       <header className="border-b border-gray-800 py-6">
         <div className="max-w-4xl mx-auto px-4">
           <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
@@ -85,9 +72,7 @@ function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Search Form */}
         <form onSubmit={handleSubmit} className="mb-8">
           <div className="flex gap-4">
             <input
@@ -108,7 +93,6 @@ function App() {
           </div>
         </form>
 
-        {/* Loading Status */}
         {isLoading && (
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-8 text-center">
             <div className="animate-pulse text-xl text-blue-400">
@@ -126,17 +110,14 @@ function App() {
           </div>
         )}
 
-        {/* Error Display */}
         {error && (
           <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-8">
             <p className="text-red-300">❌ Error: {error}</p>
           </div>
         )}
 
-        {/* Results Display */}
         {result && (
           <div className="space-y-6">
-            {/* Research Plan Box */}
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
               <h2 className="text-lg font-semibold text-blue-400 mb-4">
                 📋 Research Plan
@@ -153,7 +134,6 @@ function App() {
               </ul>
             </div>
 
-            {/* Report Box */}
             <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
               <h2 className="text-lg font-semibold text-green-400 mb-4">
                 📄 Research Report
@@ -166,7 +146,6 @@ function App() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-gray-800 py-4 mt-8">
         <p className="text-center text-gray-500 text-sm">
           Built with FastAPI, OpenAI, and Tavily • Level 3 Search Agent

@@ -11,17 +11,19 @@ from pydantic import BaseModel
 from agent import plan_research, execute_search, filter_results, generate_report
 
 
-# Initialize FastAPI app
 app = FastAPI(
     title="AI Research Assistant",
     description="Level 3 Search Agent: Plans, Searches, Filters, and Synthesizes",
     version="1.0.0"
 )
 
-# Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_origins=[
+        "http://localhost:5173",
+        "https://web-scout-peach.vercel.app", 
+        "*"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

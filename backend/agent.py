@@ -13,10 +13,8 @@ from groq import Groq
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Initialize Groq client
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
@@ -76,7 +74,6 @@ Response: {"queries": ["AI safety risks and potential dangers 2024", "Benefits o
         temperature=0.7,
     )
     
-    # Parse JSON response
     import json
     result = json.loads(completion.choices[0].message.content)
     
@@ -103,31 +100,27 @@ def execute_search(queries: list[str]) -> list[dict]:
     """
     from tavily import TavilyClient
     
-    # Initialize Tavily client
     tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
     
     all_results = []
     
     for query in queries:
         try:
-            # Execute search with Tavily
             response = tavily.search(
                 query=query,
                 search_depth="basic",  # Use "advanced" for deeper search
-                max_results=5  # Get top 5 results per query
+                max_results=5
             )
             
-            # Extract relevant fields from each result
             for result in response.get("results", []):
                 all_results.append({
                     "url": result.get("url", ""),
                     "title": result.get("title", ""),
                     "content": result.get("content", ""),
-                    "query": query  # Track which query found this result
+                    "query": query 
                 })
                 
         except Exception as e:
-            # Log error but continue with other queries
             print(f"Error searching for '{query}': {str(e)}")
             continue
     
@@ -164,7 +157,6 @@ def filter_results(query: str, raw_results: list[dict]) -> str:
     
     for result in raw_results:
         try:
-            # Ask LLM if this result is relevant
             completion = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
@@ -196,7 +188,6 @@ Is this result relevant to answering the research question?"""
             relevance = json.loads(completion.choices[0].message.content)
             
             if relevance.get("is_relevant", False):
-                # Add relevant content with source URL
                 relevant_content.append(
                     f"Source: {result.get('url', 'Unknown')}\n"
                     f"Title: {result.get('title', 'No title')}\n"
@@ -205,7 +196,6 @@ Is this result relevant to answering the research question?"""
                 )
                 
         except Exception as e:
-            # If relevance check fails, include the result anyway
             print(f"Error checking relevance: {str(e)}")
             relevant_content.append(
                 f"Source: {result.get('url', 'Unknown')}\n"
@@ -213,10 +203,8 @@ Is this result relevant to answering the research question?"""
                 f"---"
             )
     
-    # Concatenate all relevant content
     context = "\n\n".join(relevant_content)
     
-    # Limit to 15,000 characters to prevent token overflow
     if len(context) > 15000:
         context = context[:15000] + "\n\n[Content truncated due to length...]"
     
