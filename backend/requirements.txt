@@ -3,13 +3,13 @@ fastapi==0.109.0
 uvicorn==0.27.0
 
 # Groq SDK
-groq==0.11.0
+groq==0.13.0
 
 # Tavily Search API
 tavily-python==0.3.3
 
 # Pydantic for structured outputs
-pydantic==2.6.0
+pydantic==2.10.5
 
 # Environment variables
 python-dotenv==1.0.0
