@@ -134,13 +134,87 @@ def execute_search(queries: list[str]) -> list[dict]:
 
 
 # ============================================================
-# Function 3: Filter Results (TODO) 
+# Function 3: Filter Results (The "Student Advantage")
 # ============================================================
 
+class RelevanceCheck(BaseModel):
+    """Structured output for relevance checking."""
+    is_relevant: bool
+    reason: str
+
+
 def filter_results(query: str, raw_results: list[dict]) -> str:
-    """Filter irrelevant results using LLM."""
-    # TODO: Implement in next commit
-    pass
+    """
+    Filter out irrelevant search results using LLM judgment.
+    
+    This is the "Student Advantage" feature - instead of dumping all
+    search results into the context, we ask the LLM to evaluate each
+    result's relevance to the original query.
+    
+    Args:
+        query: The original user research question
+        raw_results: List of search results from execute_search()
+        
+    Returns:
+        A single concatenated string of relevant content (max 15,000 chars)
+    """
+    
+    relevant_content = []
+    
+    for result in raw_results:
+        try:
+            # Ask LLM if this result is relevant
+            completion = client.beta.chat.completions.parse(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a relevance filter. Given a research question and 
+a search result, determine if the result is relevant and useful for answering the question.
+
+Be strict - only mark as relevant if the content directly helps answer the question."""
+                    },
+                    {
+                        "role": "user",
+                        "content": f"""Research Question: {query}
+
+Search Result Title: {result.get('title', 'No title')}
+Search Result Content: {result.get('content', '')[:1000]}
+
+Is this result relevant to answering the research question?"""
+                    }
+                ],
+                response_format=RelevanceCheck,
+            )
+            
+            relevance = completion.choices[0].message.parsed
+            
+            if relevance.is_relevant:
+                # Add relevant content with source URL
+                relevant_content.append(
+                    f"Source: {result.get('url', 'Unknown')}\n"
+                    f"Title: {result.get('title', 'No title')}\n"
+                    f"Content: {result.get('content', '')}\n"
+                    f"---"
+                )
+                
+        except Exception as e:
+            # If relevance check fails, include the result anyway
+            print(f"Error checking relevance: {str(e)}")
+            relevant_content.append(
+                f"Source: {result.get('url', 'Unknown')}\n"
+                f"Content: {result.get('content', '')}\n"
+                f"---"
+            )
+    
+    # Concatenate all relevant content
+    context = "\n\n".join(relevant_content)
+    
+    # Limit to 15,000 characters to prevent token overflow
+    if len(context) > 15000:
+        context = context[:15000] + "\n\n[Content truncated due to length...]"
+    
+    return context
 
 
 # ============================================================
