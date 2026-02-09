@@ -83,13 +83,54 @@ Sub-queries:
 
 
 # ============================================================
-# Function 2: Execute Search (TODO)
+# Function 2: Execute Search
 # ============================================================
 
 def execute_search(queries: list[str]) -> list[dict]:
-    """Execute searches using Tavily API."""
-    # TODO: Implement in next commit
-    pass
+    """
+    Execute web searches using the Tavily API.
+    
+    Loops through all planned queries and collects search results.
+    Handles errors gracefully to prevent one failed search from
+    crashing the entire pipeline.
+    
+    Args:
+        queries: List of search queries from plan_research()
+        
+    Returns:
+        List of search results, each containing 'url' and 'content'
+    """
+    from tavily import TavilyClient
+    
+    # Initialize Tavily client
+    tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+    
+    all_results = []
+    
+    for query in queries:
+        try:
+            # Execute search with Tavily
+            response = tavily.search(
+                query=query,
+                search_depth="basic",  # Use "advanced" for deeper search
+                max_results=5  # Get top 5 results per query
+            )
+            
+            # Extract relevant fields from each result
+            for result in response.get("results", []):
+                all_results.append({
+                    "url": result.get("url", ""),
+                    "title": result.get("title", ""),
+                    "content": result.get("content", ""),
+                    "query": query  # Track which query found this result
+                })
+                
+        except Exception as e:
+            # Log error but continue with other queries
+            print(f"Error searching for '{query}': {str(e)}")
+            continue
+    
+    return all_results
 
 
 # ============================================================
