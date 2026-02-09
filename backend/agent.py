@@ -230,6 +230,22 @@ def generate_report(query: str, context: str) -> str:
         A markdown-formatted research report with citations
     """
     
+    # Handle edge case: no context available
+    if not context or context.strip() == "":
+        return """## ⚠️ Insufficient Information
+
+I was unable to find enough relevant information to answer your question.
+
+**Possible reasons:**
+- The topic may be too niche or recent
+- Search results were not relevant to your specific question
+- The query may need to be rephrased
+
+**Suggestions:**
+- Try rephrasing your question with more specific keywords
+- Break down complex questions into simpler parts
+- Check if the topic has recent coverage online"""
+    
     completion = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
@@ -238,12 +254,15 @@ def generate_report(query: str, context: str) -> str:
                 "content": """You are a research report writer. Based on the provided sources,
 write a comprehensive, well-structured answer to the user's question.
 
-Requirements:
+CRITICAL REQUIREMENTS:
+- You MUST cite sources for EVERY factual claim using this format: [Source Title](URL)
+- NEVER make claims without a citation from the provided sources
+- If a source URL is provided, you MUST use it in your citations
 - Use markdown formatting (headers, bullet points, bold text)
-- Include inline citations linking to sources like [Source](url)
-- Be thorough but concise
-- If sources conflict, acknowledge different perspectives
-- End with a brief summary or conclusion"""
+- If sources conflict, acknowledge different perspectives with citations for each
+- End with a brief summary or conclusion
+
+Example citation: According to recent research [MIT Technology Review](https://example.com/article), AI is..."""
             },
             {
                 "role": "user",
@@ -252,7 +271,7 @@ Requirements:
 Sources:
 {context}
 
-Write a comprehensive research report answering the question above. Use the sources provided and cite them properly."""
+Write a comprehensive research report. IMPORTANT: Every factual statement MUST include an inline citation like [Source](url) from the sources above."""
             }
         ],
         temperature=0.7,
