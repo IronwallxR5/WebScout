@@ -17,7 +17,6 @@ function App() {
   const [error, setError] = useState(null)
   const [showColdStartNotice, setShowColdStartNotice] = useState(false)
 
-  // Check if user has seen the cold start notice
   useEffect(() => {
     const hasSeenNotice = localStorage.getItem('hasSeenColdStartNotice')
     if (!hasSeenNotice) {
@@ -73,7 +72,6 @@ function App() {
     }
   }
 
-  // Parse report to separate content from references
   const parseReport = (fullReport) => {
     if (!fullReport) return { content: '', references: [] }
 
@@ -81,8 +79,6 @@ function App() {
     const content = parts[0]
     const rawRefs = parts[1] || ''
 
-    // Parse references into objects if possible
-    // Format: "1. [Title](url)"
     const refs = []
     if (rawRefs) {
       const refLines = rawRefs.split('\n').filter(line => line.trim())
@@ -102,7 +98,6 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
 
-      {/* Cold Start Notice Popup */}
       {showColdStartNotice && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -129,7 +124,6 @@ function App() {
         </div>
       )}
 
-      {/* Navbar */}
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -140,7 +134,6 @@ function App() {
 
       <main className="max-w-4xl mx-auto px-6 py-10">
 
-        {/* Search Section */}
         <section className="mb-10 text-center">
           <h1 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">
             Research Assistant
@@ -175,7 +168,6 @@ function App() {
           </form>
         </section>
 
-        {/* Loading State */}
         {isLoading && (
           <div className="max-w-2xl mx-auto mb-12">
             <div className="text-center">
@@ -186,7 +178,6 @@ function App() {
           </div>
         )}
 
-        {/* Error State */}
         {error && (
           <div className="max-w-2xl mx-auto mb-8 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-3 shadow-sm">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,11 +187,9 @@ function App() {
           </div>
         )}
 
-        {/* Results */}
         {result && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
 
-            {/* Research Plan */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
               <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,7 +209,6 @@ function App() {
               </div>
             </div>
 
-            {/* Main Report */}
             <div className="bg-white border border-slate-200 rounded-2xl p-8 sm:p-10 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
 
@@ -251,7 +239,6 @@ function App() {
               </div>
             </div>
 
-            {/* References Grid */}
             {references.length > 0 && (
               <div className="bg-slate-100 rounded-2xl p-6 border border-slate-200/50">
                 <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -289,7 +276,6 @@ function App() {
 
       </main>
 
-      {/* Footer */}
 
     </div>
   )

@@ -8,7 +8,7 @@ the 4-step research pipeline: Plan → Search → Filter → Generate
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from agent import plan_research, execute_search, filter_results, generate_report
+from agent import classify_intent, plan_research, execute_search, filter_results, generate_report
 
 
 app = FastAPI(
@@ -74,6 +74,16 @@ async def research(request: ResearchRequest):
     """
     
     try:
+        # Step 0: Classify intent (Gatekeeper)
+        intent = classify_intent(request.query)
+        
+        if intent.category == "chat":
+            return ResearchResponse(
+                status="success",
+                plan=[],
+                report=intent.reply or "Hello! I'm ready to help with your research. What topic would you like to explore?"
+            )
+        
         # Step 1: Plan the research
         plan = plan_research(request.query)
         

@@ -28,6 +28,68 @@ class ResearchPlan(BaseModel):
     queries: list[str]
 
 
+class UserIntent(BaseModel):
+    """Structured output for intent classification."""
+    category: str 
+    reply: str | None = None 
+
+
+# ============================================================
+# Function 0: Intent Classifier (Gatekeeper)
+# ============================================================
+
+def classify_intent(query: str) -> UserIntent:
+    """
+    Classify user intent as 'research' or 'chat' to avoid wasting API calls.
+    
+    If the user sends greetings, thanks, or meta-questions about the bot,
+    we respond immediately without triggering the research pipeline.
+    
+    Returns:
+        UserIntent with category and optional reply
+    """
+    import json
+    
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "system",
+                "content": """You are an intent classifier for a research assistant.
+
+Classify the user's message into ONE of two categories:
+
+1. **"chat"** - Greetings, thanks, small talk, or questions about the assistant itself.
+   Examples: "Hi", "Hello", "Thanks!", "Who are you?", "What can you do?", "How are you?"
+   → Generate a friendly reply and set category to "chat"
+
+2. **"research"** - Any question that requires searching the web for information.
+   Examples: "What is quantum computing?", "Nvidia stock analysis", "Latest AI news"
+   → Set category to "research" and leave reply as null
+
+Respond with valid JSON:
+{"category": "chat" or "research", "reply": "friendly message" or null}"""
+            },
+            {
+                "role": "user",
+                "content": query
+            }
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.3,
+    )
+    
+    try:
+        result = json.loads(completion.choices[0].message.content)
+        return UserIntent(
+            category=result.get("category", "research"),
+            reply=result.get("reply")
+        )
+    except Exception:
+        # Default to research if parsing fails
+        return UserIntent(category="research", reply=None)
+
+
 # ============================================================
 # Function 1: Plan Research
 # ============================================================
@@ -123,16 +185,14 @@ def filter_results(query: str, raw_results: list[dict]) -> tuple[str, list[dict]
     if not raw_results:
         return "", []
     
-    # Build a numbered summary of all results for the LLM
     summaries = []
     for i, result in enumerate(raw_results):
         title = result.get('title', 'No title')
-        content = result.get('content', '')[:500]  # Truncate for batch prompt
+        content = result.get('content', '')[:500] 
         summaries.append(f"[{i}] Title: {title}\nContent: {content}")
     
     all_summaries = "\n\n---\n\n".join(summaries)
     
-    # Make ONE LLM call to filter all results at once
     try:
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -166,19 +226,15 @@ Which result indices (0, 1, 2, etc.) are relevant to answering this research que
         result_json = json.loads(completion.choices[0].message.content)
         relevant_indices = result_json.get("relevant_indices", [])
         
-        # Validate indices
         relevant_indices = [i for i in relevant_indices if isinstance(i, int) and 0 <= i < len(raw_results)]
         
     except Exception as e:
         print(f"Error in batch filtering: {str(e)}")
-        # Fallback: return top 3 results if LLM fails
         relevant_indices = list(range(min(3, len(raw_results))))
     
-    # If no results marked relevant, fallback to top 3
     if not relevant_indices:
         relevant_indices = list(range(min(3, len(raw_results))))
     
-    # Build context and sources from relevant results only
     context_parts = []
     sources = []
     source_number = 1
@@ -231,7 +287,6 @@ I was unable to find enough relevant information to answer your question.
 - Break down complex questions into simpler parts
 - Check if the topic has recent coverage online"""
     
-    # Ask LLM to write a CLEAN report without any citations in the text
     completion = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
@@ -273,17 +328,14 @@ Write a comprehensive research report answering the question. Do NOT include any
     
     report = completion.choices[0].message.content
     
-    # Remove any citation patterns the LLM might have added anyway
     report = re.sub(r'\[\d+\]', '', report)
     report = re.sub(r'\[Source \d+\]', '', report)
-    report = re.sub(r'\[[^\]]*\]\([^\)]*\)', '', report)  # Remove markdown links
+    report = re.sub(r'\[[^\]]*\]\([^\)]*\)', '', report) 
     
-    # Clean up extra spaces
     report = re.sub(r'  +', ' ', report)
     report = re.sub(r' +\.', '.', report)
     report = re.sub(r' +,', ',', report)
     
-    # Append References section at the end
     references = "\n\n---\n\n## 📚 References\n\n"
     references += "The following sources were used to compile this report:\n\n"
     for source in sources:
