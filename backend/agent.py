@@ -1,6 +1,112 @@
-# Core agent logic
-# TODO: Implement the 4 core functions:
-# 1. plan_research(query: str) -> list[str]
-# 2. execute_search(queries: list[str]) -> list[dict]
-# 3. filter_results(query: str, raw_results: list[dict]) -> str
-# 4. generate_report(query: str, context: str) -> str
+"""
+agent.py - Core Agent Logic for AI Research Assistant
+
+This module contains the 4 core functions that power the Level 3 Search Agent:
+1. plan_research() - Breaks query into sub-queries
+2. execute_search() - Calls Tavily API
+3. filter_results() - Filters irrelevant results
+4. generate_report() - Synthesizes final report
+"""
+
+import os
+from openai import OpenAI
+from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+# ============================================================
+# Pydantic Models for Structured LLM Outputs
+# ============================================================
+
+class ResearchPlan(BaseModel):
+    """Structured output for research planning."""
+    queries: list[str]
+
+
+# ============================================================
+# Function 1: Plan Research
+# ============================================================
+
+def plan_research(query: str) -> list[str]:
+    """
+    Break down a user's vague query into 3 specific, searchable sub-queries.
+    
+    Uses OpenAI's structured output feature with Pydantic to guarantee
+    the response is a valid list of strings (no regex parsing needed).
+    
+    Args:
+        query: The user's original research question
+        
+    Returns:
+        A list of 3 specific search queries
+    """
+    
+    completion = client.beta.chat.completions.parse(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """You are a research planning assistant. Your job is to break down 
+a user's research question into exactly 3 specific, searchable sub-queries.
+
+Each sub-query should:
+- Be specific and focused
+- Target different aspects of the main question
+- Be optimized for web search (clear, concise keywords)
+
+Example:
+User: "Is AI dangerous?"
+Sub-queries:
+1. "AI safety risks and potential dangers 2024"
+2. "Benefits of artificial intelligence for society"
+3. "AI regulation and safety measures worldwide"
+"""
+            },
+            {
+                "role": "user",
+                "content": f"Break down this research question into 3 specific search queries:\n\n{query}"
+            }
+        ],
+        response_format=ResearchPlan,
+    )
+    
+    # Extract the parsed Pydantic model
+    research_plan = completion.choices[0].message.parsed
+    
+    return research_plan.queries
+
+
+# ============================================================
+# Function 2: Execute Search (TODO)
+# ============================================================
+
+def execute_search(queries: list[str]) -> list[dict]:
+    """Execute searches using Tavily API."""
+    # TODO: Implement in next commit
+    pass
+
+
+# ============================================================
+# Function 3: Filter Results (TODO) 
+# ============================================================
+
+def filter_results(query: str, raw_results: list[dict]) -> str:
+    """Filter irrelevant results using LLM."""
+    # TODO: Implement in next commit
+    pass
+
+
+# ============================================================
+# Function 4: Generate Report (TODO)
+# ============================================================
+
+def generate_report(query: str, context: str) -> str:
+    """Generate final markdown report."""
+    # TODO: Implement in next commit
+    pass
