@@ -218,10 +218,49 @@ Is this result relevant to answering the research question?"""
 
 
 # ============================================================
-# Function 4: Generate Report (TODO)
+# Function 4: Generate Report
 # ============================================================
 
 def generate_report(query: str, context: str) -> str:
-    """Generate final markdown report."""
-    # TODO: Implement in next commit
-    pass
+    """
+    Generate a comprehensive markdown report based on filtered research.
+    
+    Takes the refined context from filter_results() and asks the LLM
+    to synthesize a well-structured answer with proper citations.
+    
+    Args:
+        query: The original user research question
+        context: Filtered, relevant content from filter_results()
+        
+    Returns:
+        A markdown-formatted research report with citations
+    """
+    
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """You are a research report writer. Based on the provided sources,
+write a comprehensive, well-structured answer to the user's question.
+
+Requirements:
+- Use markdown formatting (headers, bullet points, bold text)
+- Include inline citations linking to sources like [Source](url)
+- Be thorough but concise
+- If sources conflict, acknowledge different perspectives
+- End with a brief summary or conclusion"""
+            },
+            {
+                "role": "user",
+                "content": f"""Research Question: {query}
+
+Sources:
+{context}
+
+Write a comprehensive research report answering the question above. Use the sources provided and cite them properly."""
+            }
+        ],
+    )
+    
+    return completion.choices[0].message.content
