@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 
 const STATUS_MESSAGES = [
-  "🧠 Analyzing your request...",
-  "🔎 Generating search strategy...",
-  "🌍 Searching the web (Tavily)...",
-  "❌ Filtering irrelevant noise...",
-  "✍️ Synthesizing final report..."
+  "Analyzing request...",
+  "Planning research...",
+  "Searching sources...",
+  "Filtering content...",
+  "Writing report..."
 ]
 
 function App() {
@@ -21,7 +21,7 @@ function App() {
     if (isLoading) {
       interval = setInterval(() => {
         setStatusIndex((prev) => (prev + 1) % STATUS_MESSAGES.length)
-      }, 2500) 
+      }, 2500)
     }
     return () => clearInterval(interval)
   }, [isLoading])
@@ -59,98 +59,197 @@ function App() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-800 py-6">
-        <div className="max-w-4xl mx-auto px-4">
-          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            🔬 AI Research Assistant
-          </h1>
-          <p className="text-gray-400 text-center mt-2">
-            Level 3 Search Agent: Plans → Searches → Filters → Synthesizes
-          </p>
-        </div>
-      </header>
+  // Parse report to separate content from references
+  const parseReport = (fullReport) => {
+    if (!fullReport) return { content: '', references: [] }
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit} className="mb-8">
-          <div className="flex gap-4">
+    const parts = fullReport.split('## 📚 References')
+    const content = parts[0]
+    const rawRefs = parts[1] || ''
+
+    // Parse references into objects if possible
+    // Format: "1. [Title](url)"
+    const refs = []
+    if (rawRefs) {
+      const refLines = rawRefs.split('\n').filter(line => line.trim())
+      refLines.forEach(line => {
+        const match = line.match(/^\d+\.\s+\[(.*?)\]\((.*?)\)/)
+        if (match) {
+          refs.push({ title: match[1], url: match[2] })
+        }
+      })
+    }
+
+    return { content, references: refs }
+  }
+
+  const { content: reportContent, references } = result ? parseReport(result.report) : { content: '', references: [] }
+
+  return (
+    <div className="min-h-screen bg-slate-100 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
+
+      {/* Navbar */}
+      <nav className="bg-white border-b border-slate-200 sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-bold tracking-tight text-slate-900">WebScout</span>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-4xl mx-auto px-6 py-10">
+
+        {/* Search Section */}
+        <section className="mb-10 text-center">
+          <h1 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">
+            Research Assistant
+          </h1>
+          <p className="text-slate-500 mb-8 text-lg max-w-xl mx-auto leading-relaxed">
+            Deep research into any topic, synthesized for you.
+          </p>
+
+          <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ask a research question..."
-              className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-lg focus:outline-none focus:border-blue-500 transition-colors"
+              placeholder="What do you want to research?"
+              className="w-full bg-white border border-slate-200 text-slate-900 text-lg rounded-2xl pl-12 pr-32 py-4 shadow-sm hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 focus:outline-none transition-all placeholder:text-slate-400"
               disabled={isLoading}
             />
-            <button
-              type="submit"
-              disabled={isLoading || !query.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition-colors"
-            >
-              {isLoading ? 'Researching...' : 'Research'}
-            </button>
-          </div>
-        </form>
+            <div className="absolute right-2 top-2 bottom-2">
+              <button
+                type="submit"
+                disabled={isLoading || !query.trim()}
+                className="h-full px-6 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-sm"
+              >
+                {isLoading ? '...' : 'Search'}
+              </button>
+            </div>
+          </form>
+        </section>
 
+        {/* Loading State */}
         {isLoading && (
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-8 text-center">
-            <div className="animate-pulse text-xl text-blue-400">
-              {STATUS_MESSAGES[statusIndex]}
-            </div>
-            <div className="mt-4 flex justify-center gap-2">
-              {STATUS_MESSAGES.map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-2 h-2 rounded-full transition-colors ${i === statusIndex ? 'bg-blue-500' : 'bg-gray-700'
-                    }`}
-                />
-              ))}
+          <div className="max-w-2xl mx-auto mb-12">
+            <div className="text-center">
+              <span className="text-sm font-medium text-slate-500 animate-pulse tracking-wide">
+                {STATUS_MESSAGES[statusIndex]}
+              </span>
             </div>
           </div>
         )}
 
+        {/* Error State */}
         {error && (
-          <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-8">
-            <p className="text-red-300">❌ Error: {error}</p>
+          <div className="max-w-2xl mx-auto mb-8 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-3 shadow-sm">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {error}
           </div>
         )}
 
+        {/* Results */}
         {result && (
-          <div className="space-y-6">
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-blue-400 mb-4">
-                📋 Research Plan
+          <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
+
+            {/* Research Plan */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Research Plan
               </h2>
-              <ul className="space-y-2">
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {result.plan.map((subQuery, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="bg-blue-600 text-white text-sm px-2 py-0.5 rounded">
+                  <div key={i} className="bg-slate-50 rounded-xl p-3 text-sm text-slate-700 border border-slate-100 flex items-start gap-2">
+                    <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-bold mt-0.5">
                       {i + 1}
                     </span>
-                    <span className="text-gray-300">{subQuery}</span>
-                  </li>
+                    <span className="leading-snug">{subQuery}</span>
+                  </div>
                 ))}
-              </ul>
-            </div>
-
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-green-400 mb-4">
-                📄 Research Report
-              </h2>
-              <div className="prose prose-invert prose-blue max-w-none">
-                <ReactMarkdown>{result.report}</ReactMarkdown>
               </div>
             </div>
+
+            {/* Main Report */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 sm:p-10 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-8 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Research Report
+              </h2>
+
+              <div className="prose prose-slate max-w-none 
+                prose-headings:text-slate-900 prose-headings:font-bold prose-h1:text-3xl prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4
+                prose-p:text-slate-600 prose-p:leading-relaxed prose-p:mb-6
+                prose-li:text-slate-600
+                prose-strong:text-slate-800 prose-strong:font-semibold
+                prose-a:text-blue-600 prose-a:font-medium prose-a:no-underline hover:prose-a:underline hover:prose-a:text-blue-700 transition-colors
+                prose-blockquote:border-l-4 prose-blockquote:border-blue-200 prose-blockquote:bg-blue-50/50 prose-blockquote:p-4 prose-blockquote:rounded-r-lg prose-blockquote:text-slate-700 prose-blockquote:italic
+                prose-code:bg-slate-100 prose-code:text-slate-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+                <ReactMarkdown
+                  components={{
+                    a: ({ node, ...props }) => (
+                      <a {...props} className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-sm font-medium hover:bg-blue-100 transition-colors inline-block mx-0.5 no-underline border border-blue-100" target="_blank" rel="noopener noreferrer" />
+                    )
+                  }}
+                >
+                  {reportContent}
+                </ReactMarkdown>
+              </div>
+            </div>
+
+            {/* References Grid */}
+            {references.length > 0 && (
+              <div className="bg-slate-100 rounded-2xl p-6 border border-slate-200/50">
+                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                  </svg>
+                  Sources Used
+                </h2>
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                  {references.map((ref, i) => (
+                    <a
+                      key={i}
+                      href={ref.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between h-full"
+                    >
+                      <span className="text-sm font-medium text-slate-800 line-clamp-2 mb-2 group-hover:text-blue-700 transition-colors">
+                        {ref.title}
+                      </span>
+                      <span className="text-xs text-slate-400 truncate flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        {new URL(ref.url).hostname.replace('www.', '')}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
         )}
+
       </main>
 
-      <footer className="border-t border-gray-800 py-4 mt-8">
-        <p className="text-center text-gray-500 text-sm">
-          Built with FastAPI, OpenAI, and Tavily • Level 3 Search Agent
-        </p>
-      </footer>
+      {/* Footer */}
+
     </div>
   )
 }

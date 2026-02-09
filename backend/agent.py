@@ -201,10 +201,8 @@ Is this result relevant to answering the research question?"""
 
 def generate_report(query: str, context: str, sources: list[dict]) -> str:
     """
-    Generate a markdown report and inject citations via code (not LLM).
-    
-    The LLM writes using [1], [2] references. Then Python code replaces
-    those with proper markdown links [[Title](URL)].
+    Generate a clean markdown report WITHOUT inline citations.
+    Only adds a References section at the end.
     """
     
     if not context or context.strip() == "" or not sources:
@@ -222,66 +220,61 @@ I was unable to find enough relevant information to answer your question.
 - Break down complex questions into simpler parts
 - Check if the topic has recent coverage online"""
     
-    # Create source map for LLM prompt (just numbers, no titles!)
-    source_numbers = ", ".join([f"[{s['num']}]" for s in sources])
-    
-    # Step 1: Ask LLM to write report using ONLY [1], [2], [3] citations
+    # Ask LLM to write a CLEAN report without any citations in the text
     completion = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "system",
-                "content": f"""You are a research report writer.
+                "content": """You are a research report writer.
 
-CRITICAL RULES:
-1. Write a comprehensive answer to the research question
-2. After EVERY fact or claim, add a citation using ONLY these formats: [1], [2], [3], etc.
-3. You have these sources available: {source_numbers}
-4. Do NOT write source names or titles - just use [1], [2], etc.
-5. Use markdown: ## for headers, **bold** for key terms, - for bullets
-6. Do NOT add a references section - it will be added automatically
+RULES:
+1. Write a comprehensive, well-structured answer to the research question
+2. DO NOT include any citations, references, or source numbers in the text
+3. Write clean, flowing prose without [1], [2], or any citation markers
+4. Use markdown: ## for headers, **bold** for key terms, - for bullet points
+5. DO NOT add a references or sources section - it will be added automatically
+6. Just focus on explaining the topic clearly and thoroughly
 
-EXAMPLE FORMAT:
-Computers are electronic devices that process data [1]. They were first invented in the 20th century [2]. Modern computers can perform billions of calculations per second [1][3]."""
+EXAMPLE (CORRECT):
+## What is a Computer?
+
+A computer is an electronic device that processes data according to instructions. It can perform calculations, store information, and execute programs.
+
+### Key Components
+
+- **CPU**: The brain of the computer that executes instructions
+- **Memory**: Stores data temporarily for quick access
+- **Storage**: Saves data permanently"""
             },
             {
                 "role": "user",
                 "content": f"""Research Question: {query}
 
-Sources:
+Source Information:
 {context}
 
-Write a comprehensive research report. Use [1], [2], [3], etc. after each fact."""
+Write a comprehensive research report answering the question. Do NOT include any citations or reference numbers in the text. Just write clean, informative content."""
             }
         ],
-        temperature=0.3,
+        temperature=0.5,
     )
     
     report = completion.choices[0].message.content
     
-    # Step 2: Use CODE to replace [1], [2] with [[Title](url)]
-    for source in sources:
-        num = source["num"]
-        title = source["title"]
-        url = source["url"]
-        
-        # Clean and shorten title
-        clean_title = title.replace("[", "").replace("]", "").replace("(", "").replace(")", "")
-        short_title = clean_title[:40] + "..." if len(clean_title) > 40 else clean_title
-        
-        # Create the markdown citation link
-        if url:
-            citation = f"[[{short_title}]({url})]"
-        else:
-            citation = f"[{short_title}]"
-        
-        # Replace [1], [2], etc. with the actual citation link
-        # Handle various formats: [1], [1], [1][2], etc.
-        pattern = rf'\[{num}\]'
-        report = re.sub(pattern, citation, report)
+    # Remove any citation patterns the LLM might have added anyway
+    report = re.sub(r'\[\d+\]', '', report)
+    report = re.sub(r'\[Source \d+\]', '', report)
+    report = re.sub(r'\[[^\]]*\]\([^\)]*\)', '', report)  # Remove markdown links
     
-    # Step 3: Append References section
+    # Clean up extra spaces
+    report = re.sub(r'  +', ' ', report)
+    report = re.sub(r' +\.', '.', report)
+    report = re.sub(r' +,', ',', report)
+    
+    # Append References section at the end
     references = "\n\n---\n\n## 📚 References\n\n"
+    references += "The following sources were used to compile this report:\n\n"
     for source in sources:
         num = source["num"]
         title = source["title"]
