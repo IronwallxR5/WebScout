@@ -80,11 +80,11 @@ async def research(request: ResearchRequest):
         # Step 2: Execute searches
         raw_results = execute_search(plan)
         
-        # Step 3: Filter irrelevant results
-        context = filter_results(request.query, raw_results)
+        # Step 3: Filter irrelevant results (returns context + sources dict)
+        context, sources = filter_results(request.query, raw_results)
         
-        # Step 4: Generate final report
-        report = generate_report(request.query, context)
+        # Step 4: Generate final report with code-injected citations
+        report = generate_report(request.query, context, sources)
         
         return ResearchResponse(
             status="success",
