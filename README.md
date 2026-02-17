@@ -3,6 +3,11 @@
   <p align="center">
     <strong>An AI-powered research agent that plans, searches, filters, and synthesizes answers from the web.</strong>
   </p>
+  <p align="center">
+    <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python">
+    <img src="https://img.shields.io/badge/FastAPI-0.115-green.svg" alt="FastAPI">
+    <img src="https://img.shields.io/badge/LLM-Groq%20Llama--3.3-orange.svg" alt="LLM">
+  </p>
 </p>
 
 <p align="center"> •
