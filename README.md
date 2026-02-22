@@ -82,7 +82,7 @@ The current implementation is **stateless by design**. Each request is independe
 For production, session history could be added via:
 - In-memory cache (Redis)
 - Lightweight database (SQLite)
-- Vector store for semantic memory
+- Vector store for semantic memory (e.g., ChromaDB, Pinecone)
 
 ---
 
