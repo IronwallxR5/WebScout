@@ -1,3 +1,4 @@
+<!-- Readme -->
 <p align="center">
   <h1 align="center">🔍 WebScout — Deep Research Assistant</h1>
   <p align="center">
